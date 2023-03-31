@@ -1,0 +1,6 @@
+server:
+    port: 8080
+
+block:
+    p2pPort: 3000
+    address: ws://localhost:3001
