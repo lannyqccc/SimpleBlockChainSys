@@ -14,9 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
 
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -48,7 +46,7 @@ public class NetworkService implements ApplicationRunner {
                 write(webSocket, receiveLatestBlock());
                 break;
             case MsgSyn.RESPONSE_LATEST_BLOCK:
-                resMsgHandler(msg.getData());
+                resBlockHandler(msg.getData());
                 break;
             case MsgSyn.QUERY_BLOCKCHAIN:
                 write(webSocket, receiveBlockChain());
@@ -60,7 +58,7 @@ public class NetworkService implements ApplicationRunner {
 
     }
 
-    public synchronized void resMsgHandler(String data) {
+    public synchronized void resBlockHandler(String data) {
 
         Block receivedBlock = new Gson().fromJson(data, Block.class);
         Block theLatestBlock = blockChain.getLatestBlock();
@@ -169,6 +167,8 @@ public class NetworkService implements ApplicationRunner {
     public void run(ApplicationArguments args) throws Exception {
         server.initServer(blockChain.getP2pPort());
         client.connectToPeer(blockChain.getAddress());
+        System.out.println("Port: " + blockChain.getP2pPort());
+        System.out.println("node address: " + blockChain.getAddress());
 
     }
 }

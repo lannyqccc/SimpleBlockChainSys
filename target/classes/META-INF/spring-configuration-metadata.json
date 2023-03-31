@@ -8,6 +8,11 @@
   ],
   "properties": [
     {
+      "name": "block.address",
+      "type": "java.lang.String",
+      "sourceType": "com.lanny.web.utils.BlockChain"
+    },
+    {
       "name": "block.block-list",
       "type": "java.util.List<com.lanny.web.model.Block>",
       "sourceType": "com.lanny.web.utils.BlockChain"
@@ -15,6 +20,12 @@
     {
       "name": "block.p2p-port",
       "type": "java.lang.Integer",
+      "sourceType": "com.lanny.web.utils.BlockChain",
+      "defaultValue": 0
+    },
+    {
+      "name": "block.sockets-list",
+      "type": "java.util.List<org.java_websocket.WebSocket>",
       "sourceType": "com.lanny.web.utils.BlockChain"
     },
     {

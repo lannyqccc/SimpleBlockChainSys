@@ -1,10 +1,14 @@
 package com.lanny.web.service;
 
+import com.google.gson.GsonBuilder;
 import com.lanny.web.model.Block;
+import com.lanny.web.model.Message;
 import com.lanny.web.model.Transaction;
 import com.lanny.web.utils.BlockChain;
+import com.lanny.web.utils.MsgSyn;
 import com.lanny.web.utils.WebUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.web.embedded.netty.NettyWebServer;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -17,6 +21,9 @@ public class MineService {
     BlockChain blockChain;
     @Autowired
     BlockService blockService;
+
+    @Autowired
+    NetworkService networkService;
 
     public Block mine(){
 
@@ -44,8 +51,14 @@ public class MineService {
             nonce++;
         }
 
-        return blockService.createNewBlock(nonce, blockChain.getLatestBlock().getHash(), newBlockHash, transactions);
+        Block block = blockService.createNewBlock(nonce, blockChain.getLatestBlock().getHash(), newBlockHash, transactions);
 
+        Message msg = new Message();
+        msg.setType(MsgSyn.RESPONSE_LATEST_BLOCK);
+        msg.setData(new GsonBuilder().setPrettyPrinting().create().toJson(block));
+        networkService.broadcast(new GsonBuilder().setPrettyPrinting().create().toJson(msg));
+
+        return block;
 
     }
 

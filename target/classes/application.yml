@@ -1,2 +1,6 @@
+server:
+    port: 8090
+
 block:
-    p2pPort: 7000
+    p2pPort: 3001
+    address: ws://127.0.0.1:3000
