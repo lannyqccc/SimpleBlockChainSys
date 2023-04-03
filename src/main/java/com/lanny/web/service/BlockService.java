@@ -3,116 +3,124 @@ package com.lanny.web.service;
 import com.google.gson.GsonBuilder;
 import com.lanny.web.model.Block;
 import com.lanny.web.model.Transaction;
+import com.lanny.web.model.TxIn;
 import com.lanny.web.model.TxOut;
 import com.lanny.web.utils.BlockChain;
 import com.lanny.web.utils.CryptoUtils;
+import com.lanny.web.utils.Wallet;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
+import javax.swing.tree.TreeNode;
+import java.time.temporal.Temporal;
+import java.util.*;
 
 @Service
 public class BlockService {
     @Autowired
     BlockChain blockChain;
+    @Autowired
+    TransactionService transactionService;
+    @Autowired
+    MineService mineService;
+    @Autowired
+    Wallet wallet;
+    @Autowired
+    WalletService walletService;
+
 
     public String createGenesisBlock() {
 
-        Block genesisBlock = new Block();
+        try {
+            Block genesisBlock = new Block(0, "0");
+            List<Transaction> transactions = new ArrayList<>();
+            genesisBlock.setTransactions(transactions);
 
-        genesisBlock.setIndex(0);
-        genesisBlock.setPreviousHash("null");
-        genesisBlock.setTimeStamp(new Date().getTime() / 1000);
-        genesisBlock.setNonce(0);
+            Transaction transaction = transactionService.coinBaseTrans();
 
-        List<Transaction> transactions = new ArrayList<>();
-        Transaction transaction = new Transaction();
-        transaction.setId("0");
-        transaction.setTrInfo("这是创世区块");
-        transactions.add(transaction);
+            transactionService.addTransaction(genesisBlock, transaction);
 
-        genesisBlock.setTransactions(transactions);
-        genesisBlock.setHash(calculateHash(genesisBlock.getPreviousHash(), genesisBlock.getNonce()));
+            mineService.mine(genesisBlock);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
-        blockChain.getUTXOs().put(transactions.get(0).getId(), transactions.get(0).getTrInfo());
 
-        blockChain.getBlockList().add(genesisBlock);
         return new GsonBuilder().setPrettyPrinting().create().toJson(blockChain.getBlockList());
     }
 
+    public Block generateNextBlock() {
 
-    public Block createNewBlock(int nonce, String previousHash, String hash, List<Transaction> blockTxs) {
-        Block block = new Block();
-        block.setIndex(blockChain.getBlockList().size());
-        //时间戳
-        block.setTimeStamp(System.currentTimeMillis());
-        block.setTransactions(blockTxs);
-        //工作量证明，计算正确hash值的次数
-        block.setNonce(nonce);
-        //上一区块的哈希
-        block.setPreviousHash(previousHash);
-        //当前区块的哈希
-        block.setHash(hash);
-        if (addBlock(block)) {
-            return block;
-        }
-        return null;
+        Block previousBlock = blockChain.getLatestBlock();
+
+        int nextIndex = previousBlock.getIndex() + 1;
+        String previousHash = previousBlock.getHash();
+
+        return new Block(nextIndex, previousHash);
     }
 
-    public boolean addBlock(Block newBlock) {
-        //先对新区块的合法性进行校验
+    public Block addBlock(Block newBlock) {
+
+        if (blockChain.getBlockList().isEmpty()) {
+            blockChain.getBlockList().add(newBlock);
+            return newBlock;
+        }
         if (isValidNewBlock(newBlock, blockChain.getLatestBlock())) {
             blockChain.getBlockList().add(newBlock);
-            // 新区块的业务数据需要加入到已打包的业务数据集合里去
-            blockChain.getUTXOs().put(newBlock.getTransactions().get(0).getId(), newBlock.getTransactions().get(0).getTrInfo());
-            return true;
+            System.out.println("Block added successful.\n");
+            return newBlock;
+        } else {
+            System.out.println("Adding failed, block is invalid.\n");
+            return null;
         }
-        return false;
     }
 
-//    public Block generateNextBlock() {
-//
-//        Block newBlock = new Block();
-//        if (!blockChain.getBlockList().isEmpty()) {
-//            Block previousBlock = blockChain.getLatestBlock();
-//            int nextIndex = previousBlock.getIndex() + 1;
-//            String previousHash = previousBlock.getHash();
-//            return newBlock;
-//        }
-//        newBlock.setIndex();
-//        return newBlock;
-//    }
-
-    public String calculateHash(String previousHash, int nonce) {
-        String dataToHash = previousHash + nonce;
+    public String calculateHash(Block block) {
+        String dataToHash = block.getIndex() + block.getPreviousHash() + block.getMerkleRoot()
+                + block.getTimeStamp() + block.getDifficulty() + block.getNonce();
         return CryptoUtils.SHA256(dataToHash);
     }
 
-    public boolean isValidHash(String hash) {
-        //System.out.println("难度系数："+blockCache.getDifficulty());
-        return hash.startsWith("0000");
+    public int getDifficulty() {
+        if (blockChain.getBlockList().isEmpty()) {
+            return blockChain.getBLOCK_GENERATION_INTERVAL();
+        }
+        Block latestBlock = blockChain.getLatestBlock();
+        if (latestBlock.getIndex() % blockChain.getBLOCK_GENERATION_INTERVAL() == 0 && latestBlock.getIndex() != 0) {
+            return getAdjustedDifficulty(latestBlock, blockChain);
+        } else {
+            return latestBlock.getDifficulty();
+        }
+    }
+
+    public static int getAdjustedDifficulty(Block latestBlock, BlockChain aBlockchain) {
+        List<Block> blockList = aBlockchain.getBlockList();
+        Block prevAdjustmentBlock = blockList.get(blockList.size() - aBlockchain.getDIFFICULTY_ADJUSTMENT_INTERVAL());
+        int timeExpected = aBlockchain.getBLOCK_GENERATION_INTERVAL() * aBlockchain.getDIFFICULTY_ADJUSTMENT_INTERVAL();
+        long timeTaken = latestBlock.getTimeStamp() - prevAdjustmentBlock.getTimeStamp();
+        if (timeTaken < timeExpected / 2) {
+            return prevAdjustmentBlock.getDifficulty() + 1;
+        } else if (timeTaken > timeExpected * 2) {
+            return prevAdjustmentBlock.getDifficulty() - 1;
+        } else {
+            return prevAdjustmentBlock.getDifficulty();
+        }
+    }
+
+    public boolean hashMatchesDifficulty(String hash, int difficulty) {
+        String requiredPrefix = new String(new char[difficulty]).replace('\0', '0');
+        return hash.startsWith(requiredPrefix);
     }
 
     public boolean isValidNewBlock(Block newBlock, Block previousBlock) {
-        if (!previousBlock.getHash().equals(newBlock.getPreviousHash())) {
-            System.out.println("新区块的前一个区块hash验证不通过");
-            return false;
-        } else {
-            // 验证新区块hash值的正确性
-            String hash = calculateHash(newBlock.getPreviousHash(), newBlock.getNonce());
-            if (!hash.equals(newBlock.getHash())) {
-                System.out.println("新区块的hash无效: " + hash + " " + newBlock.getHash());
-                return false;
-            }
-            if (!isValidHash(newBlock.getHash())) {
-                return false;
-            }
-        }
 
-        return true;
+        if (previousBlock.getIndex() + 1 != newBlock.getIndex())
+            return false;
+        else if (!previousBlock.getHash().equals(newBlock.getPreviousHash()))
+            return false;
+        else return newBlock.getHash().equals(CryptoUtils.SHA256(newBlock.getIndex()
+                    + newBlock.getPreviousHash() + newBlock.getMerkleRoot() + newBlock.getTimeStamp()
+                    + newBlock.getDifficulty() + newBlock.getNonce()));
     }
 
     public boolean isValidChain(List<Block> chain) {
@@ -132,22 +140,60 @@ public class BlockService {
         return true;
     }
 
+    public void synUTXOs() {
+        List<Transaction> transactions = blockChain.getLatestBlock().getTransactions();
+        for (Transaction transaction: transactions) {
+            if (transaction.getTxIns() != null) {
+                for (TxIn txIn : transaction.getTxIns()) {
+                    blockChain.getUTXOs().remove(txIn.getTxOutId());
+                }
+            }
+            for (TxOut txOut: transaction.getTxOuts()) {
+                blockChain.getUTXOs().put(CryptoUtils.SHA256(txOut.toString()), txOut);
+            }
+        }
+    }
+
     public void replaceChain(List<Block> newBlocks) {
         List<Block> localBlockChain = blockChain.getBlockList();
-        HashMap<String, String> localUTXOs = blockChain.getUTXOs();
+        HashMap<String, TxOut> localUTXOs = blockChain.getUTXOs();
         if (isValidChain(newBlocks) && newBlocks.size() > localBlockChain.size()) {
             localBlockChain = newBlocks;
 
             localUTXOs.clear();
-            localBlockChain.forEach(block -> {
-                localUTXOs.put(block.getTransactions().get(0).getId(), block.getTransactions().get(0).getTrInfo());
-            });
+
+            List<TxOut> txOuts = new ArrayList<>();
+            List<TxIn> txIns = new ArrayList<>();
+
+            for (Block block: localBlockChain) {
+                List<Transaction> transactions = block.getTransactions();
+                for (Transaction transaction: transactions) {
+                    if (transaction.getTxIns() != null) {
+                        List<TxIn> txIns1 = transaction.getTxIns();
+                        for (TxIn txIn: txIns1) {
+                            if (!txIns.contains(txIn)) txIns.add(txIn);
+                        }
+                    }
+                    List<TxOut> txOuts1 = transaction.getTxOuts();
+                    for (TxOut txOut: txOuts1) {
+                        if (!txOuts.contains(txOut)) txOuts.add(txOut);
+                    }
+                }
+            }
+
+            for (TxOut txOut: txOuts) {
+                localUTXOs.put(CryptoUtils.SHA256(txOut.toString()), txOut);
+            }
+            for (TxIn txIn: txIns) {
+                localUTXOs.remove(txIn.getTxOuts().toString());
+            }
+
             blockChain.setBlockList(localBlockChain);
             blockChain.setUTXOs(localUTXOs);
-            System.out.println("替换后的本节点区块链："
+            System.out.println("replaced blockChain is ："
                     + new GsonBuilder().setPrettyPrinting().create().toJson(blockChain.getBlockList()));
         } else {
-            System.out.println("接收的区块链无效");
+            System.out.println("Received blockChain is invalid");
         }
     }
 }

@@ -1,11 +1,11 @@
 package com.lanny.websocket;
 
 import com.lanny.web.service.NetworkService;
+import com.lanny.web.utils.BlockChain;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.graphql.GraphQlProperties;
 import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
@@ -15,9 +15,10 @@ public class Server {
 
     @Autowired
     NetworkService networkService;
+    @Autowired
+    BlockChain blockChain;
 
     public void initServer(int port) {
-
         WebSocketServer webSocketServer = new WebSocketServer(new InetSocketAddress(port)) {
             @Override
             public void onOpen(WebSocket webSocket, ClientHandshake clientHandshake) {

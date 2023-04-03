@@ -13,8 +13,18 @@
       "sourceType": "com.lanny.web.utils.BlockChain"
     },
     {
+      "name": "block.b-l-o-c-k-g-e-n-e-r-a-t-i-o-n-i-n-t-e-r-v-a-l",
+      "type": "java.lang.Integer",
+      "sourceType": "com.lanny.web.utils.BlockChain"
+    },
+    {
       "name": "block.block-list",
       "type": "java.util.List<com.lanny.web.model.Block>",
+      "sourceType": "com.lanny.web.utils.BlockChain"
+    },
+    {
+      "name": "block.d-i-f-f-i-c-u-l-t-y-a-d-j-u-s-t-m-e-n-t-i-n-t-e-r-v-a-l",
+      "type": "java.lang.Integer",
       "sourceType": "com.lanny.web.utils.BlockChain"
     },
     {
@@ -30,7 +40,7 @@
     },
     {
       "name": "block.u-t-x-os",
-      "type": "java.util.HashMap<java.lang.String,java.lang.String>",
+      "type": "java.util.HashMap<java.lang.String,com.lanny.web.model.TxOut>",
       "sourceType": "com.lanny.web.utils.BlockChain"
     }
   ],

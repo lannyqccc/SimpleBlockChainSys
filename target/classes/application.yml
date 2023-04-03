@@ -1,6 +1,8 @@
 server:
-    port: 8090
+    port: 8000
 
 block:
-    p2pPort: 3001
-    address: ws://127.0.0.1:3000
+    difficulty: 5
+    adjustTime: 2016
+    p2pPort: 3000
+    address: ws://127.0.0.1:3001

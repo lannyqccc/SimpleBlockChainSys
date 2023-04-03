@@ -5,8 +5,11 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.lanny.web.model.Block;
 import com.lanny.web.model.Message;
+import com.lanny.web.model.Transaction;
+import com.lanny.web.model.TxOut;
 import com.lanny.web.utils.BlockChain;
 import com.lanny.web.utils.MsgSyn;
+import com.lanny.web.utils.Wallet;
 import com.lanny.websocket.Client;
 import com.lanny.websocket.Server;
 import org.java_websocket.WebSocket;
@@ -15,23 +18,25 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 
 @Service
 public class NetworkService implements ApplicationRunner {
-
     @Autowired
     BlockChain blockChain;
-
     @Autowired
     BlockService blockService;
-
     @Autowired
     Server server;
-
     @Autowired
     Client client;
+    @Autowired
+    Wallet wallet;
+    @Autowired
+    TransactionService transactionService;
 
 
     public void messageHandler(WebSocket webSocket, String message, List<WebSocket> webSockets) {
@@ -54,6 +59,18 @@ public class NetworkService implements ApplicationRunner {
             case MsgSyn.RESPONSE_BLOCKCHAIN:
                 resBlockChainHandler(msg.getData());
                 break;
+            case MsgSyn.QUERY_RECEIVER:
+                if (Integer.parseInt(msg.getData()) == blockChain.getP2pPort()) {
+                    write(webSocket, receiveReceiver());
+                }
+                break;
+            case MsgSyn.RESPONSE_RECEIVER:
+                resReceiverHandler(msg.getData());
+                break;
+            case MsgSyn.TRANS_INFO:
+                Transaction transaction = getTransInfo(msg.getData());
+                transactionService.makeTransaction(transaction);
+                break;
         }
 
     }
@@ -71,7 +88,10 @@ public class NetworkService implements ApplicationRunner {
                     System.out.println("reapply blockchain in all nodes");
                 }else if (receivedBlock.getIndex() > theLatestBlock.getIndex() &&
                         theLatestBlock.getHash().equals(receivedBlock.getPreviousHash())) {
-                    if (blockService.addBlock(receivedBlock)) {
+                    if (blockService.isValidNewBlock(receivedBlock, theLatestBlock)) {
+                        blockChain.getBlockList().add(receivedBlock);
+                        System.out.println("Block added successful.");
+                        blockService.synUTXOs();
                         broadcast(receiveLatestBlock());
                     }
                     System.out.println("add block to local chain");
@@ -82,13 +102,6 @@ public class NetworkService implements ApplicationRunner {
             }
         }
 
-    }
-
-    public String receiveBlockChain() {
-        Message message = new Message();
-        message.setType(MsgSyn.RESPONSE_BLOCKCHAIN);
-        message.setData(new GsonBuilder().setPrettyPrinting().create().toJson(blockChain.getBlockList()));
-        return new GsonBuilder().setPrettyPrinting().create().toJson(message);
     }
 
     public synchronized void resBlockChainHandler(String data) {
@@ -109,7 +122,10 @@ public class NetworkService implements ApplicationRunner {
 
                 if (resLatestBlock.getIndex() > latestBlock.getIndex()) {
                     if (latestBlock.getHash().equals(resLatestBlock.getPreviousHash())) {
-                        if (blockService.addBlock(resLatestBlock)) {
+                        if (blockService.isValidNewBlock(resLatestBlock, latestBlock)) {
+                            blockChain.getBlockList().add(resLatestBlock);
+                            System.out.println("Block added successful.");
+                            blockService.synUTXOs();
                             broadcast(receiveLatestBlock());
                         }
                         System.out.println("add block to local chain");
@@ -141,7 +157,6 @@ public class NetworkService implements ApplicationRunner {
         webSocket.send(message);
     }
 
-
     public String applyTheLatestBlock() {
         return new GsonBuilder().setPrettyPrinting().create().toJson(new Message(MsgSyn.QUERY_LATEST_BLOCK));
     }
@@ -159,6 +174,39 @@ public class NetworkService implements ApplicationRunner {
         return new GsonBuilder().setPrettyPrinting().create().toJson(message);
     }
 
+    public String receiveBlockChain() {
+        Message message = new Message();
+        message.setType(MsgSyn.RESPONSE_BLOCKCHAIN);
+        message.setData(new GsonBuilder().setPrettyPrinting().create().toJson(blockChain.getBlockList()));
+        return new GsonBuilder().setPrettyPrinting().create().toJson(message);
+    }
+
+    public void getReceiver(int port) {
+        broadcast(applyReceiver(port));
+    }
+    public String applyReceiver(int port) {
+        Message message = new Message(MsgSyn.QUERY_RECEIVER);
+        message.setData(Integer.toString(port));
+        return new GsonBuilder().setPrettyPrinting().create().toJson(message);
+    }
+
+    public String receiveReceiver() {
+        Message message = new Message(MsgSyn.RESPONSE_RECEIVER);
+        message.setData(new GsonBuilder().setPrettyPrinting().create().toJson(wallet.getPublicKey()));
+        return new GsonBuilder().setPrettyPrinting().create().toJson(message);
+    }
+
+    public void resReceiverHandler(String data) {
+
+        String receiver = new Gson().fromJson(data, String.class);
+        wallet.setReceiver(receiver);
+        System.out.println("get receiver address successful.");
+    }
+
+    public Transaction getTransInfo(String data) {
+        return new Gson().fromJson(data, Transaction.class);
+    }
+
     public List<WebSocket> getSockets(){
         return blockChain.getSocketsList();
     }
@@ -167,8 +215,6 @@ public class NetworkService implements ApplicationRunner {
     public void run(ApplicationArguments args) throws Exception {
         server.initServer(blockChain.getP2pPort());
         client.connectToPeer(blockChain.getAddress());
-        System.out.println("Port: " + blockChain.getP2pPort());
-        System.out.println("node address: " + blockChain.getAddress());
 
     }
 }

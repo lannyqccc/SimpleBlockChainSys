@@ -22,7 +22,6 @@ public class Client {
             WebSocketClient webSocketClient = new WebSocketClient(new URI(address)) {
                 @Override
                 public void onOpen(ServerHandshake serverHandshake) {
-                    //apply to get the latest block.
                     networkService.write(this, networkService.applyTheLatestBlock());
                     networkService.getSockets().add(this);
                 }

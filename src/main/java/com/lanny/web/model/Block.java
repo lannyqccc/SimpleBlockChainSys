@@ -1,6 +1,7 @@
 package com.lanny.web.model;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class Block {
@@ -13,6 +14,13 @@ public class Block {
     private List<Transaction> transactions;
     private int difficulty;
     private int nonce;
+
+    public Block() {}
+
+    public Block(int index, String previousHash) {
+        this.index = index;
+        this.previousHash = previousHash;
+    }
 
     public int getIndex() {
         return index;

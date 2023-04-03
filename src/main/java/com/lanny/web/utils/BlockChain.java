@@ -10,8 +10,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.PriorityBlockingQueue;
+
 
 
 @ConfigurationProperties(prefix = "block")
@@ -19,9 +18,11 @@ import java.util.concurrent.PriorityBlockingQueue;
 public class BlockChain {
 
     public static int transactionNums = 0;
-    public static final int BLOCK_GENERATION_INTERVAL = 5;
-    public static final int DIFFICULTY_ADJUSTMENT_INTERVAL = 60;
-    public HashMap<String, String> UTXOs = new HashMap<String,String>();
+    @Value("${block.difficulty}")
+    private int BLOCK_GENERATION_INTERVAL;
+    @Value("${block.adjustTime}")
+    private int DIFFICULTY_ADJUSTMENT_INTERVAL;
+    private HashMap<String, TxOut> UTXOs = new HashMap<>();
     private List<Block> blockList = new ArrayList<>();
     private List<WebSocket> socketsList = new ArrayList<>();
     @Value("${block.p2pPort}")
@@ -40,11 +41,27 @@ public class BlockChain {
         BlockChain.transactionNums = transactionNums;
     }
 
-    public HashMap<String, String> getUTXOs() {
+    public int getBLOCK_GENERATION_INTERVAL() {
+        return BLOCK_GENERATION_INTERVAL;
+    }
+
+    public void setBLOCK_GENERATION_INTERVAL(int BLOCK_GENERATION_INTERVAL) {
+        this.BLOCK_GENERATION_INTERVAL = BLOCK_GENERATION_INTERVAL;
+    }
+
+    public int getDIFFICULTY_ADJUSTMENT_INTERVAL() {
+        return DIFFICULTY_ADJUSTMENT_INTERVAL;
+    }
+
+    public void setDIFFICULTY_ADJUSTMENT_INTERVAL(int DIFFICULTY_ADJUSTMENT_INTERVAL) {
+        this.DIFFICULTY_ADJUSTMENT_INTERVAL = DIFFICULTY_ADJUSTMENT_INTERVAL;
+    }
+
+    public HashMap<String, TxOut> getUTXOs() {
         return UTXOs;
     }
 
-    public void setUTXOs(HashMap<String, String> UTXOs) {
+    public void setUTXOs(HashMap<String, TxOut> UTXOs) {
         this.UTXOs = UTXOs;
     }
 
