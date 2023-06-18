@@ -5,13 +5,11 @@ com/lanny/web/utils/MsgSyn.class
 com/lanny/web/model/TxIn.class
 com/lanny/BlockChainApplication.class
 com/lanny/web/utils/CryptoUtils.class
-com/lanny/web/service/NetworkService$4.class
 com/lanny/web/service/BlockService.class
 com/lanny/websocket/Server$1.class
 com/lanny/websocket/Client$1.class
 com/lanny/web/utils/WebUtils.class
 com/lanny/websocket/Client.class
-com/lanny/web/service/NetworkService$3.class
 com/lanny/web/service/MineService.class
 com/lanny/web/model/Transaction.class
 com/lanny/web/utils/BlockChain.class

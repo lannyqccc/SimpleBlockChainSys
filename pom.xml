@@ -61,7 +61,7 @@
 
 
     <build>
-        <finalName>blockchain-node1</finalName>
+        <finalName>blockchain-node3</finalName>
 
         <plugins>
             <plugin>
